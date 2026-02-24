@@ -10,553 +10,420 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>縦書文庫</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
 
-  :root {
-    --bg: #f5f0e8;
-    --text: #2a2218;
-    --accent: #8b6914;
-    --accent-light: #c4a35a;
-    --panel-bg: rgba(235, 229, 216, 0.95);
-    --font-size: 18px;
-    --line-height: 1.9;
-  }
-  [data-theme="dark"] {
-    --bg: #1a1814;
-    --text: #d4cfc4;
-    --accent: #c4a35a;
-    --accent-light: #8b6914;
-    --panel-bg: rgba(42, 37, 32, 0.95);
-  }
+:root {
+  --bg: #f5f0e8;
+  --text: #2a2218;
+  --accent: #8b6914;
+  --accent-light: #c4a35a;
+  --panel-bg: rgba(235,229,216,0.96);
+  --fs: 18;
+}
+[data-theme="dark"] {
+  --bg: #1a1814;
+  --text: #d4cfc4;
+  --accent: #c4a35a;
+  --accent-light: #8b6914;
+  --panel-bg: rgba(42,37,32,0.96);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:'Noto Serif JP','Hiragino Mincho ProN','YuMincho',serif;
+  background:var(--bg);color:var(--text);
+  overflow:hidden;position:fixed;inset:0;
+  transition:background .3s,color .3s;
+}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* ===== LANDING ===== */
+#landing{
+  position:fixed;inset:0;z-index:100;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transition:opacity .4s;
+}
+#landing.hide{opacity:0;pointer-events:none}
+.ltitle{writing-mode:vertical-rl;font-size:36px;letter-spacing:.3em;color:var(--accent);font-weight:700;margin-bottom:12px}
+.lsub{writing-mode:vertical-rl;font-size:13px;opacity:.4;margin-bottom:48px;letter-spacing:.12em}
+.fbtn{
+  background:var(--accent);color:#fff;border:none;
+  padding:14px 44px;font-size:16px;font-family:inherit;
+  border-radius:8px;cursor:pointer;letter-spacing:.1em;
+}
+.fbtn:active{transform:scale(.95)}
+#fi{display:none}
+.rlist{margin-top:32px;width:280px;display:flex;flex-direction:column;gap:6px}
+.rhead{font-size:12px;opacity:.4;text-align:center;margin-bottom:4px}
+.ritem{
+  background:var(--panel-bg);border:none;padding:10px 16px;border-radius:8px;
+  font-family:inherit;font-size:13px;color:var(--text);cursor:pointer;
+  text-align:left;display:flex;justify-content:space-between;align-items:center;
+}
+.ritem:active{opacity:.7}
+.rpct{font-size:11px;color:var(--accent)}
 
-  body {
-    font-family: 'Noto Serif JP', 'YuMincho', '游明朝', 'Hiragino Mincho ProN', serif;
-    background: var(--bg);
-    color: var(--text);
-    overflow: hidden;
-    height: 100dvh;
-    width: 100vw;
-    transition: background 0.4s, color 0.4s;
-    position: fixed;
-    top: 0; left: 0;
-  }
+/* ===== READER ===== */
+#reader{display:none;position:fixed;inset:0}
+#reader.on{display:block}
 
-  /* ── Landing ── */
-  #landing {
-    position: fixed; inset: 0;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    z-index: 100; background: var(--bg);
-    transition: opacity 0.4s;
-  }
-  #landing.hidden { opacity: 0; pointer-events: none; }
-  .landing-title {
-    writing-mode: vertical-rl;
-    font-size: 36px; letter-spacing: 0.3em;
-    color: var(--accent); margin-bottom: 16px; font-weight: 700;
-  }
-  .landing-sub {
-    writing-mode: vertical-rl;
-    font-size: 13px; color: var(--text); opacity: 0.4;
-    margin-bottom: 48px; letter-spacing: 0.15em;
-  }
-  .file-btn {
-    background: var(--accent); color: #fff; border: none;
-    padding: 14px 44px; font-size: 16px; font-family: inherit;
-    border-radius: 8px; cursor: pointer; letter-spacing: 0.1em;
-  }
-  .file-btn:active { transform: scale(0.95); }
-  #fileInput { display: none; }
+#content{
+  writing-mode:vertical-rl;
+  text-orientation:mixed;
+  line-height:1.85;
+  padding:36px 28px;
+  padding-top:max(36px,env(safe-area-inset-top,36px));
+  padding-bottom:max(36px,env(safe-area-inset-bottom,36px));
+  height:100%;width:100%;
+  overflow:hidden;
+  word-break:break-all;
+  text-align:justify;
+  -webkit-user-select:text;user-select:text;
+}
+#content p{text-indent:1em;margin-bottom:.4em}
 
-  .recent-list { margin-top: 36px; display: flex; flex-direction: column; gap: 6px; width: 280px; }
-  .recent-heading { font-size: 12px; color: var(--text); opacity: 0.4; text-align: center; margin-bottom: 4px; }
-  .recent-item {
-    background: var(--panel-bg); border: none; padding: 10px 16px;
-    border-radius: 8px; font-family: inherit; font-size: 13px;
-    color: var(--text); cursor: pointer; text-align: left;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .recent-item:active { opacity: 0.7; }
-  .progress-badge { font-size: 11px; color: var(--accent); }
+/* ===== BARS ===== */
+#tbar,#bbar{
+  position:fixed;left:0;right:0;
+  background:var(--panel-bg);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  z-index:50;opacity:0;pointer-events:none;transition:opacity .25s;
+}
+#tbar{top:0;padding:max(12px,env(safe-area-inset-top,12px)) 12px 8px;display:flex;align-items:center;justify-content:space-between}
+#bbar{bottom:0;padding:12px 16px max(12px,env(safe-area-inset-bottom,12px));display:flex;flex-direction:column;gap:8px}
+#tbar.on,#bbar.on{opacity:1;pointer-events:auto}
+.btitle{font-size:13px;opacity:.6;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
 
-  /* ── Reader ── */
-  #reader { display: none; position: fixed; inset: 0; }
-  #reader.active { display: block; }
+.brow{display:flex;align-items:center;gap:10px}
+.b{
+  background:none;border:1px solid var(--accent-light);color:var(--text);
+  min-width:36px;height:36px;border-radius:8px;font-size:15px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  font-family:inherit;padding:0 6px;
+}
+.b:active{background:var(--accent);color:#fff}
+.sw{flex:1;display:flex;align-items:center;gap:8px}
+#slider{flex:1;accent-color:var(--accent)}
+.pn{font-size:12px;opacity:.5;min-width:55px;text-align:center}
 
-  #page-content {
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    font-size: var(--font-size);
-    line-height: var(--line-height);
-    padding: 40px 32px;
-    padding-top: max(40px, env(safe-area-inset-top, 40px));
-    padding-bottom: max(40px, env(safe-area-inset-bottom, 40px));
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
-    word-break: break-all;
-    text-align: justify;
-    -webkit-user-select: text;
-    user-select: text;
-    transition: opacity 0.15s;
-  }
-  #page-content.turning { opacity: 0.15; }
-  #page-content p {
-    text-indent: 1em;
-    margin-bottom: 0.5em;
-  }
+#prog{position:fixed;bottom:0;left:0;height:3px;background:var(--accent);z-index:60;transition:width .3s;pointer-events:none}
 
-  /* ── Top Bar ── */
-  #topbar {
-    position: fixed; top: 0; left: 0; right: 0;
-    padding: max(14px, env(safe-area-inset-top, 14px)) 12px 10px;
-    background: var(--panel-bg);
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    display: flex; align-items: center; justify-content: space-between;
-    z-index: 50;
-    opacity: 0; pointer-events: none; transition: opacity 0.25s;
-  }
-  #topbar.show { opacity: 1; pointer-events: auto; }
-  .bar-title {
-    font-size: 13px; opacity: 0.7;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    flex: 1; text-align: center; padding: 0 8px;
-  }
-
-  /* ── Bottom Bar ── */
-  #bottombar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    padding: 14px 16px max(14px, env(safe-area-inset-bottom, 14px));
-    background: var(--panel-bg);
-    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    z-index: 50;
-    opacity: 0; pointer-events: none; transition: opacity 0.25s;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  #bottombar.show { opacity: 1; pointer-events: auto; }
-  .bar-row { display: flex; align-items: center; gap: 12px; }
-
-  .btn {
-    background: none; border: 1px solid var(--accent-light);
-    color: var(--text); min-width: 38px; height: 38px;
-    border-radius: 8px; font-size: 16px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    font-family: inherit; padding: 0 8px;
-  }
-  .btn:active { background: var(--accent); color: #fff; }
-
-  .slider-wrap { flex: 1; display: flex; align-items: center; gap: 10px; }
-  #pageSlider { flex: 1; accent-color: var(--accent); height: 4px; }
-  .page-num { font-size: 12px; opacity: 0.6; min-width: 55px; text-align: center; }
-
-  #progressBar {
-    position: fixed; bottom: 0; left: 0;
-    height: 3px; background: var(--accent);
-    z-index: 60; transition: width 0.3s; pointer-events: none;
-  }
-
-  #toast {
-    position: fixed; top: 70px; left: 50%;
-    transform: translateX(-50%) translateY(-16px);
-    background: var(--accent); color: #fff;
-    padding: 8px 22px; border-radius: 20px; font-size: 13px;
-    opacity: 0; transition: opacity 0.3s, transform 0.3s;
-    z-index: 200; pointer-events: none; white-space: nowrap;
-  }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast{
+  position:fixed;top:60px;left:50%;transform:translateX(-50%) translateY(-14px);
+  background:var(--accent);color:#fff;padding:7px 20px;border-radius:18px;font-size:13px;
+  opacity:0;transition:opacity .3s,transform .3s;z-index:200;pointer-events:none;white-space:nowrap;
+}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
-
 <div id="toast"></div>
 
-<!-- Landing -->
+<!-- LANDING -->
 <div id="landing">
-  <div class="landing-title">縦書文庫</div>
-  <div class="landing-sub">テキストリーダー</div>
-  <button class="file-btn" onclick="pickFile()">ファイルを開く</button>
-  <input type="file" id="fileInput" accept=".txt,.text,text/plain">
-  <div class="recent-list" id="recentList"></div>
+  <div class="ltitle">縦書文庫</div>
+  <div class="lsub">テキストリーダー</div>
+  <button class="fbtn" onclick="$('fi').click()">ファイルを開く</button>
+  <input type="file" id="fi" accept=".txt,.text,text/plain">
+  <div class="rlist" id="rlist"></div>
 </div>
 
-<!-- Reader -->
+<!-- READER -->
 <div id="reader">
-  <div id="page-content"></div>
-
-  <div id="topbar">
-    <button class="btn" onclick="goHome()" style="font-size:13px;">✕ 戻る</button>
-    <span class="bar-title" id="barTitle"></span>
-    <button class="btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  <div id="content"></div>
+  <div id="tbar">
+    <button class="b" onclick="goHome()">✕ 戻る</button>
+    <span class="btitle" id="btitle"></span>
+    <button class="b" id="tbtn" onclick="togTheme()">🌙</button>
   </div>
-
-  <div id="bottombar">
-    <div class="bar-row">
-      <button class="btn" onclick="adjFont(-2)">A<small>−</small></button>
-      <button class="btn" onclick="adjFont(2)"><b>A</b><small>+</small></button>
-      <div class="slider-wrap">
-        <input type="range" id="pageSlider" min="0" max="1" value="0">
-        <span class="page-num" id="pageNum">1/1</span>
+  <div id="bbar">
+    <div class="brow">
+      <button class="b" onclick="adjF(-2)">A−</button>
+      <button class="b" onclick="adjF(2)"><b>A+</b></button>
+      <div class="sw">
+        <input type="range" id="slider" min="0" max="1" value="0">
+        <span class="pn" id="pn">1/1</span>
       </div>
     </div>
   </div>
-
-  <div id="progressBar"></div>
+  <div id="prog"></div>
 </div>
 
 <script>
-const $ = id => document.getElementById(id);
-function toast(msg) {
-  const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 1800);
-}
+const $=id=>document.getElementById(id);
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1600)}
 
-// ─── State ───
-let paragraphs = [];  // Array of paragraph strings
-let pages = [];       // Array of { paraStart, charStart, paraEnd, charEnd }
-let curPage = 0;
-let numPages = 1;
-let fileName = '';
-let fontSize = 18;
-let barsOn = false;
-const pc = $('page-content');
+/* ── State ── */
+let raw='', fname='', fs=18, pg=0, tp=1, bars=false;
+let charPages=[]; // array of strings, one per page
 
-// ─── File ───
-function pickFile() { $('fileInput').click(); }
-$('fileInput').addEventListener('change', e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  fileName = f.name.replace(/\.(txt|text)$/i, '');
-  const r = new FileReader();
-  r.onload = ev => {
-    const raw = ev.target.result;
-    paragraphs = raw.split(/\n/);
-    startReading();
-  };
-  r.readAsText(f, 'UTF-8');
-  e.target.value = '';
+/* ── File ── */
+$('fi').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  fname=f.name.replace(/\.(txt|text)$/i,'');
+  const r=new FileReader();
+  r.onload=ev=>{raw=ev.target.result; startRead()};
+  r.readAsText(f,'UTF-8');
+  e.target.value='';
 });
 
-// ─── Build pages by measuring real rendered overflow ───
-function buildPages() {
-  pages = [];
-  pc.innerHTML = '';
-  pc.style.fontSize = fontSize + 'px';
-
-  let pI = 0, cI = 0;
-
-  while (pI < paragraphs.length) {
-    // Start a new page
-    pc.innerHTML = '';
-    const pageStart = { p: pI, c: cI };
-    let lastGoodP = pI, lastGoodC = cI;
-    let fits = true;
-
-    while (pI < paragraphs.length && fits) {
-      const para = paragraphs[pI];
-      const el = document.createElement('p');
-      const txt = cI > 0 ? para.substring(cI) : para;
-
-      if (para.trim() === '') {
-        el.innerHTML = '\u3000'; // full-width space for blank lines
-      } else {
-        el.textContent = txt;
-      }
-
-      pc.appendChild(el);
-
-      // Check overflow: in vertical-rl, content grows leftward
-      if (pc.scrollWidth > pc.clientWidth + 2) {
-        // Overflowed. Remove and try fitting characters.
-        pc.removeChild(el);
-
-        if (para.trim() === '') {
-          // blank line doesn't fit, end page here
-          break;
-        }
-
-        // Binary search for how many chars fit
-        const remain = cI > 0 ? para.substring(cI) : para;
-        let lo = 1, hi = remain.length, best = 0;
-
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          el.textContent = remain.substring(0, mid);
-          pc.appendChild(el);
-          const ok = pc.scrollWidth <= pc.clientWidth + 2;
-          pc.removeChild(el);
-          if (ok) { best = mid; lo = mid + 1; }
-          else { hi = mid - 1; }
-        }
-
-        if (best > 0) {
-          el.textContent = remain.substring(0, best);
-          pc.appendChild(el);
-          lastGoodP = pI;
-          lastGoodC = cI + best;
-        }
-        fits = false;
-        break;
-      }
-
-      // Fully fits
-      lastGoodP = pI + 1;
-      lastGoodC = 0;
-      pI++;
-      cI = 0;
-    }
-
-    pages.push({ ps: pageStart.p, cs: pageStart.c, pe: lastGoodP, ce: lastGoodC });
-
-    pI = lastGoodP;
-    cI = lastGoodC;
-
-    // If nothing advanced, force skip
-    if (pI === pageStart.p && cI === pageStart.c) {
-      pI++;
-      cI = 0;
-    }
-
-    if (pages.length > 50000) break;
-  }
-
-  if (pages.length === 0) {
-    pages.push({ ps: 0, cs: 0, pe: paragraphs.length, ce: 0 });
-  }
-
-  numPages = pages.length;
+/* ── Simple character-count pagination ──
+   Estimate chars per page from screen size and font size.
+   This avoids any heavy DOM measurement.
+*/
+function calcCharsPerPage(){
+  const el=$('content');
+  const h=el.clientHeight;
+  const w=el.clientWidth;
+  // padding ~ 36px each side
+  const usableH=h-72;
+  const usableW=w-56;
+  // vertical-rl: chars go top-to-bottom, columns go right-to-left
+  const charH=fs*1.85; // font-size * line-height ≈ height per char cell
+  const colW=fs*1.85;  // column width ≈ font size * line-height
+  const charsPerCol=Math.max(1,Math.floor(usableH/fs));
+  const numCols=Math.max(1,Math.floor(usableW/colW));
+  return Math.max(50, charsPerCol*numCols);
 }
 
-function renderPage(n) {
-  if (n < 0 || n >= numPages) return;
-  const pg = pages[n];
-  pc.innerHTML = '';
+function buildPages(){
+  const cpp=calcCharsPerPage();
+  charPages=[];
 
-  let pI = pg.ps, cI = pg.cs;
+  // Split raw text preserving paragraph structure
+  // We'll work with a flat approach: count visible characters
+  // but keep paragraph breaks as natural page-break points
 
-  while (pI < paragraphs.length && (pI < pg.pe || (pI === pg.pe && pg.ce > 0 && cI < pg.ce))) {
-    const para = paragraphs[pI];
-    const el = document.createElement('p');
+  const lines=raw.split('\n');
+  let currentPage='';
+  let currentCount=0;
 
-    if (para.trim() === '') {
-      el.innerHTML = '\u3000';
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    const lineLen=line.length||1; // blank line counts as 1
+
+    if(currentCount+lineLen > cpp && currentCount > 0){
+      // This line would overflow. Save current page.
+      charPages.push(currentPage);
+      currentPage='';
+      currentCount=0;
+    }
+
+    // If a single line is longer than a page, split it
+    if(lineLen > cpp){
+      let pos=0;
+      while(pos<line.length){
+        const remaining=cpp-currentCount;
+        const chunk=line.substring(pos, pos+remaining);
+        currentPage+=(currentPage?'\n':'')+chunk;
+        currentCount+=chunk.length;
+        pos+=remaining;
+        if(currentCount>=cpp && pos<line.length){
+          charPages.push(currentPage);
+          currentPage='';
+          currentCount=0;
+        }
+      }
     } else {
-      const start = (pI === pg.ps) ? cI : 0;
-      const end = (pI === pg.pe && pg.ce > 0) ? pg.ce : para.length;
-      el.textContent = para.substring(start, end);
+      currentPage+=(currentPage?'\n':'')+line;
+      currentCount+=lineLen;
     }
-
-    pc.appendChild(el);
-    pI++;
-    cI = 0;
-  }
-}
-
-// ─── Navigation ───
-function goPage(n, anim = true) {
-  n = Math.max(0, Math.min(numPages - 1, n));
-  if (anim && n !== curPage) {
-    pc.classList.add('turning');
-    setTimeout(() => {
-      curPage = n;
-      renderPage(n);
-      pc.classList.remove('turning');
-      updateUI();
-      savePos();
-    }, 130);
-  } else {
-    curPage = n;
-    renderPage(n);
-    updateUI();
-  }
-}
-function prevPage() { goPage(curPage - 1); }
-function nextPage() { goPage(curPage + 1); }
-
-function updateUI() {
-  $('pageNum').textContent = `${curPage + 1} / ${numPages}`;
-  $('pageSlider').max = Math.max(0, numPages - 1);
-  $('pageSlider').value = curPage;
-  $('progressBar').style.width = (numPages > 1 ? (curPage / (numPages - 1)) * 100 : 0) + '%';
-}
-
-// ─── Touch: distinguish tap vs text-select vs swipe ───
-let tchX = 0, tchY = 0, tchT = 0, tchMoved = false;
-
-document.addEventListener('touchstart', e => {
-  if (!$('reader').classList.contains('active')) return;
-  tchX = e.touches[0].clientX;
-  tchY = e.touches[0].clientY;
-  tchT = Date.now();
-  tchMoved = false;
-}, { passive: true });
-
-document.addEventListener('touchmove', e => {
-  if (!$('reader').classList.contains('active')) return;
-  const dx = Math.abs(e.touches[0].clientX - tchX);
-  const dy = Math.abs(e.touches[0].clientY - tchY);
-  if (dx > 12 || dy > 12) tchMoved = true;
-}, { passive: true });
-
-document.addEventListener('touchend', e => {
-  if (!$('reader').classList.contains('active')) return;
-  const elapsed = Date.now() - tchT;
-  const endX = e.changedTouches[0].clientX;
-  const dx = endX - tchX;
-
-  // Ignore if touching toolbar elements
-  const target = e.target;
-  if (target.closest('#topbar') || target.closest('#bottombar')) return;
-
-  // Swipe detection
-  if (tchMoved && Math.abs(dx) > 60 && elapsed < 500) {
-    dx > 0 ? prevPage() : nextPage();
-    return;
   }
 
-  // Quick tap detection (not a text selection drag)
-  if (!tchMoved && elapsed < 250) {
-    const screenW = window.innerWidth;
-    const x = endX;
+  if(currentPage.trim()){
+    charPages.push(currentPage);
+  }
 
-    if (barsOn) {
-      // Any tap closes bars
-      toggleBars();
+  if(charPages.length===0) charPages.push('');
+  tp=charPages.length;
+}
+
+function render(n){
+  n=Math.max(0,Math.min(tp-1,n));
+  pg=n;
+  const el=$('content');
+  el.style.fontSize=fs+'px';
+  el.innerHTML='';
+
+  const text=charPages[n]||'';
+  const lines=text.split('\n');
+  lines.forEach(line=>{
+    const p=document.createElement('p');
+    if(line.trim()===''){
+      p.innerHTML='\u3000';
     } else {
-      // Right 30% = prev, left 30% = next, center = toggle bars
-      if (x > screenW * 0.7) {
-        prevPage();
-      } else if (x < screenW * 0.3) {
-        nextPage();
-      } else {
-        toggleBars();
-      }
+      p.textContent=line;
     }
-  }
-  // If tchMoved but short dx → was text selection, do nothing
-}, { passive: true });
-
-$('pageSlider').addEventListener('input', e => goPage(+e.target.value, false));
-
-// ─── Font Size ───
-function adjFont(d) {
-  const ratio = numPages > 1 ? curPage / (numPages - 1) : 0;
-  fontSize = Math.max(12, Math.min(40, fontSize + d));
-  document.documentElement.style.setProperty('--font-size', fontSize + 'px');
-  buildPages();
-  goPage(Math.round(ratio * (numPages - 1)), false);
-  try { localStorage.setItem('tr-fs', fontSize); } catch(e) {}
-}
-
-// ─── Theme ───
-function toggleTheme() {
-  const dark = !document.body.hasAttribute('data-theme');
-  document.body.toggleAttribute('data-theme', dark);
-  $('themeBtn').textContent = dark ? '☀️' : '🌙';
-  try { localStorage.setItem('tr-th', dark ? 'dark' : 'light'); } catch(e) {}
-}
-
-// ─── Bars ───
-function toggleBars() {
-  barsOn = !barsOn;
-  $('topbar').classList.toggle('show', barsOn);
-  $('bottombar').classList.toggle('show', barsOn);
-}
-
-// ─── Bookmarks ───
-function savePos() {
-  try {
-    const bm = JSON.parse(localStorage.getItem('tr-bm') || '{}');
-    bm[fileName] = { p: curPage, t: numPages, d: Date.now() };
-    localStorage.setItem('tr-bm', JSON.stringify(bm));
-  } catch(e) {}
-}
-function loadPos() {
-  try { return (JSON.parse(localStorage.getItem('tr-bm') || '{}'))[fileName] || null; }
-  catch(e) { return null; }
-}
-
-// ─── Recent ───
-function showRecent() {
-  const el = $('recentList'); el.innerHTML = '';
-  try {
-    const bm = JSON.parse(localStorage.getItem('tr-bm') || '{}');
-    const list = Object.entries(bm).sort((a,b) => (b[1].d||0) - (a[1].d||0)).slice(0, 5);
-    if (!list.length) return;
-    el.innerHTML = '<div class="recent-heading">最近の本</div>';
-    list.forEach(([n, d]) => {
-      const pct = d.t > 1 ? Math.round((d.p / (d.t - 1)) * 100) : 0;
-      const btn = document.createElement('button');
-      btn.className = 'recent-item';
-      btn.innerHTML = `<span>${n}</span><span class="progress-badge">${pct}%</span>`;
-      btn.onclick = () => { toast('同じファイルを再度選択してください'); pickFile(); };
-      el.appendChild(btn);
-    });
-  } catch(e) {}
-}
-
-// ─── Start / Home ───
-function startReading() {
-  $('landing').classList.add('hidden');
-  $('reader').classList.add('active');
-  $('barTitle').textContent = fileName;
-  barsOn = false;
-
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      buildPages();
-      const bm = loadPos();
-      if (bm && bm.p > 0 && bm.p < numPages) {
-        goPage(bm.p, false);
-        toast(`${bm.p + 1}ページから再開`);
-      } else {
-        goPage(0, false);
-      }
-    }, 100);
+    el.appendChild(p);
   });
+
+  updUI();
 }
 
-function goHome() {
+function updUI(){
+  $('pn').textContent=`${pg+1} / ${tp}`;
+  $('slider').max=Math.max(0,tp-1);
+  $('slider').value=pg;
+  $('prog').style.width=(tp>1?(pg/(tp-1))*100:0)+'%';
+}
+
+/* ── Navigation ── */
+function go(n,anim){
+  n=Math.max(0,Math.min(tp-1,n));
+  if(anim&&n!==pg){
+    $('content').style.opacity='0.15';
+    setTimeout(()=>{render(n);$('content').style.opacity='1';savePos()},120);
+  } else {
+    render(n);
+  }
+}
+function prev(){go(pg-1,true)}
+function next(){go(pg+1,true)}
+
+/* ── Touch handling ── */
+let tx=0,ty=0,tt=0,tm=false;
+
+document.addEventListener('touchstart',e=>{
+  if(!$('reader').classList.contains('on')) return;
+  tx=e.touches[0].clientX;ty=e.touches[0].clientY;tt=Date.now();tm=false;
+},{passive:true});
+
+document.addEventListener('touchmove',e=>{
+  if(!$('reader').classList.contains('on')) return;
+  if(Math.abs(e.touches[0].clientX-tx)>12||Math.abs(e.touches[0].clientY-ty)>12) tm=true;
+},{passive:true});
+
+document.addEventListener('touchend',e=>{
+  if(!$('reader').classList.contains('on')) return;
+  const tgt=e.target;
+  if(tgt.closest('#tbar')||tgt.closest('#bbar')) return;
+
+  const dt=Date.now()-tt;
+  const ex=e.changedTouches[0].clientX;
+  const dx=ex-tx;
+
+  // Swipe
+  if(tm&&Math.abs(dx)>50&&dt<500){
+    dx>0?prev():next(); return;
+  }
+
+  // Quick tap
+  if(!tm&&dt<300){
+    const w=window.innerWidth;
+    if(bars){togBars();return}
+    if(ex>w*0.65) prev();
+    else if(ex<w*0.35) next();
+    else togBars();
+  }
+},{passive:true});
+
+$('slider').addEventListener('input',e=>go(+e.target.value,false));
+
+/* ── Font ── */
+function adjF(d){
+  const ratio=tp>1?pg/(tp-1):0;
+  fs=Math.max(12,Math.min(40,fs+d));
+  buildPages();
+  go(Math.round(ratio*(tp-1)),false);
+  try{localStorage.setItem('tr-fs',fs)}catch(e){}
+}
+
+/* ── Theme ── */
+function togTheme(){
+  const dk=!document.body.hasAttribute('data-theme');
+  document.body.toggleAttribute('data-theme',dk);
+  $('tbtn').textContent=dk?'☀️':'🌙';
+  try{localStorage.setItem('tr-th',dk?'d':'l')}catch(e){}
+}
+
+/* ── Bars ── */
+function togBars(){
+  bars=!bars;
+  $('tbar').classList.toggle('on',bars);
+  $('bbar').classList.toggle('on',bars);
+}
+
+/* ── Bookmark ── */
+function savePos(){
+  try{
+    const bm=JSON.parse(localStorage.getItem('tr-bm')||'{}');
+    bm[fname]={p:pg,t:tp,d:Date.now()};
+    localStorage.setItem('tr-bm',JSON.stringify(bm));
+  }catch(e){}
+}
+function loadPos(){
+  try{return(JSON.parse(localStorage.getItem('tr-bm')||'{}'))[fname]||null}catch(e){return null}
+}
+
+/* ── Recent ── */
+function showRecent(){
+  const el=$('rlist');el.innerHTML='';
+  try{
+    const bm=JSON.parse(localStorage.getItem('tr-bm')||'{}');
+    const ls=Object.entries(bm).sort((a,b)=>(b[1].d||0)-(a[1].d||0)).slice(0,5);
+    if(!ls.length) return;
+    el.innerHTML='<div class="rhead">最近の本</div>';
+    ls.forEach(([n,d])=>{
+      const pct=d.t>1?Math.round((d.p/(d.t-1))*100):0;
+      const b=document.createElement('button');b.className='ritem';
+      b.innerHTML=`<span>${n}</span><span class="rpct">${pct}%</span>`;
+      b.onclick=()=>{toast('ファイルを再度選択してください');$('fi').click()};
+      el.appendChild(b);
+    });
+  }catch(e){}
+}
+
+/* ── Start / Home ── */
+function startRead(){
+  $('landing').classList.add('hide');
+  $('reader').classList.add('on');
+  $('btitle').textContent=fname;
+  bars=false;
+  setTimeout(()=>{
+    buildPages();
+    const bm=loadPos();
+    if(bm&&bm.p>0&&bm.p<tp){
+      go(bm.p,false);
+      toast(`${bm.p+1}ページから再開`);
+    } else {
+      go(0,false);
+    }
+  },50);
+}
+
+function goHome(){
   savePos();
-  $('reader').classList.remove('active');
-  $('landing').classList.remove('hidden');
-  barsOn = false;
-  $('topbar').classList.remove('show');
-  $('bottombar').classList.remove('show');
+  $('reader').classList.remove('on');
+  $('landing').classList.remove('hide');
+  bars=false;$('tbar').classList.remove('on');$('bbar').classList.remove('on');
   showRecent();
 }
 
-// ─── Keyboard ───
-document.addEventListener('keydown', e => {
-  if (!$('reader').classList.contains('active')) return;
-  if (e.key === 'ArrowLeft') nextPage();
-  if (e.key === 'ArrowRight') prevPage();
+/* ── Keyboard ── */
+document.addEventListener('keydown',e=>{
+  if(!$('reader').classList.contains('on')) return;
+  if(e.key==='ArrowLeft') next();
+  if(e.key==='ArrowRight') prev();
 });
 
-// ─── Resize ───
+/* ── Resize ── */
 let rT;
-window.addEventListener('resize', () => {
+window.addEventListener('resize',()=>{
   clearTimeout(rT);
-  rT = setTimeout(() => {
-    if ($('reader').classList.contains('active')) {
-      const ratio = numPages > 1 ? curPage / (numPages - 1) : 0;
+  rT=setTimeout(()=>{
+    if($('reader').classList.contains('on')){
+      const ratio=tp>1?pg/(tp-1):0;
       buildPages();
-      goPage(Math.round(ratio * (numPages - 1)), false);
+      go(Math.round(ratio*(tp-1)),false);
     }
-  }, 250);
+  },300);
 });
 
-// ─── Init ───
-try {
-  if (localStorage.getItem('tr-th') === 'dark') {
-    document.body.setAttribute('data-theme', 'dark'); $('themeBtn').textContent = '☀️';
-  }
-  const fs = localStorage.getItem('tr-fs');
-  if (fs) { fontSize = +fs; document.documentElement.style.setProperty('--font-size', fontSize+'px'); }
-} catch(e) {}
+/* ── Init ── */
+try{
+  if(localStorage.getItem('tr-th')==='d'){document.body.setAttribute('data-theme','dark');$('tbtn').textContent='☀️'}
+  const f=localStorage.getItem('tr-fs');if(f)fs=+f;
+}catch(e){}
 showRecent();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 </script>
 </body>
 </html>
