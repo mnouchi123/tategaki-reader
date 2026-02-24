@@ -51,15 +51,21 @@ body{
 }
 .fbtn:active{transform:scale(.95)}
 #fi{display:none}
-.rlist{margin-top:32px;width:280px;display:flex;flex-direction:column;gap:6px}
+.rlist{margin-top:32px;width:300px;display:flex;flex-direction:column;gap:6px}
 .rhead{font-size:12px;opacity:.4;text-align:center;margin-bottom:4px}
 .ritem{
-  background:var(--panel-bg);border:none;padding:10px 16px;border-radius:8px;
+  background:var(--panel-bg);border:none;padding:12px 16px;border-radius:8px;
   font-family:inherit;font-size:13px;color:var(--text);cursor:pointer;
   text-align:left;display:flex;justify-content:space-between;align-items:center;
 }
 .ritem:active{opacity:.7}
-.rpct{font-size:11px;color:var(--accent)}
+.rpct{font-size:11px;color:var(--accent);white-space:nowrap;margin-left:8px}
+.rname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.rdel{
+  background:none;border:none;color:var(--text);opacity:.3;
+  font-size:16px;padding:0 0 0 8px;cursor:pointer;
+}
+.rdel:active{opacity:.8}
 
 /* ===== READER ===== */
 #reader{display:none;position:fixed;inset:0}
@@ -112,6 +118,9 @@ body{
   opacity:0;transition:opacity .3s,transform .3s;z-index:200;pointer-events:none;white-space:nowrap;
 }
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Storage indicator */
+.storage-info{font-size:11px;opacity:.3;text-align:center;margin-top:12px}
 </style>
 </head>
 <body>
@@ -153,33 +162,68 @@ function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTi
 
 /* ── State ── */
 let raw='', fname='', fs=18, pg=0, tp=1, bars=false;
-let charPages=[]; // array of strings, one per page
+let charPages=[];
+
+/* ── Storage helpers ── */
+// Books are stored individually: tr-book-{name} = text content
+// Bookmark list: tr-bm = { name: { p, t, d } }
+function saveBook(name, text){
+  try{ localStorage.setItem('tr-book-'+name, text); }
+  catch(e){
+    // Storage full - try removing oldest book
+    toast('容量不足：古い本を削除します');
+    removeOldestBook();
+    try{ localStorage.setItem('tr-book-'+name, text); }catch(e2){}
+  }
+}
+
+function loadBook(name){
+  try{ return localStorage.getItem('tr-book-'+name); }catch(e){ return null; }
+}
+
+function removeBook(name){
+  try{
+    localStorage.removeItem('tr-book-'+name);
+    const bm=JSON.parse(localStorage.getItem('tr-bm')||'{}');
+    delete bm[name];
+    localStorage.setItem('tr-bm',JSON.stringify(bm));
+  }catch(e){}
+}
+
+function removeOldestBook(){
+  try{
+    const bm=JSON.parse(localStorage.getItem('tr-bm')||'{}');
+    const entries=Object.entries(bm).sort((a,b)=>(a[1].d||0)-(b[1].d||0));
+    if(entries.length>0){
+      const oldest=entries[0][0];
+      removeBook(oldest);
+    }
+  }catch(e){}
+}
 
 /* ── File ── */
 $('fi').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return;
   fname=f.name.replace(/\.(txt|text)$/i,'');
   const r=new FileReader();
-  r.onload=ev=>{raw=ev.target.result; startRead()};
+  r.onload=ev=>{
+    raw=ev.target.result;
+    saveBook(fname, raw);
+    startRead();
+  };
   r.readAsText(f,'UTF-8');
   e.target.value='';
 });
 
-/* ── Simple character-count pagination ──
-   Estimate chars per page from screen size and font size.
-   This avoids any heavy DOM measurement.
-*/
+/* ── Pagination ── */
 function calcCharsPerPage(){
   const el=$('content');
   const h=el.clientHeight;
   const w=el.clientWidth;
-  // padding ~ 36px each side
   const usableH=h-72;
   const usableW=w-56;
-  // vertical-rl: chars go top-to-bottom, columns go right-to-left
-  const charH=fs*1.85; // font-size * line-height ≈ height per char cell
-  const colW=fs*1.85;  // column width ≈ font size * line-height
   const charsPerCol=Math.max(1,Math.floor(usableH/fs));
+  const colW=fs*1.85;
   const numCols=Math.max(1,Math.floor(usableW/colW));
   return Math.max(50, charsPerCol*numCols);
 }
@@ -187,27 +231,20 @@ function calcCharsPerPage(){
 function buildPages(){
   const cpp=calcCharsPerPage();
   charPages=[];
-
-  // Split raw text preserving paragraph structure
-  // We'll work with a flat approach: count visible characters
-  // but keep paragraph breaks as natural page-break points
-
   const lines=raw.split('\n');
   let currentPage='';
   let currentCount=0;
 
   for(let i=0;i<lines.length;i++){
     const line=lines[i];
-    const lineLen=line.length||1; // blank line counts as 1
+    const lineLen=line.length||1;
 
     if(currentCount+lineLen > cpp && currentCount > 0){
-      // This line would overflow. Save current page.
       charPages.push(currentPage);
       currentPage='';
       currentCount=0;
     }
 
-    // If a single line is longer than a page, split it
     if(lineLen > cpp){
       let pos=0;
       while(pos<line.length){
@@ -228,10 +265,7 @@ function buildPages(){
     }
   }
 
-  if(currentPage.trim()){
-    charPages.push(currentPage);
-  }
-
+  if(currentPage.trim()) charPages.push(currentPage);
   if(charPages.length===0) charPages.push('');
   tp=charPages.length;
 }
@@ -244,17 +278,12 @@ function render(n){
   el.innerHTML='';
 
   const text=charPages[n]||'';
-  const lines=text.split('\n');
-  lines.forEach(line=>{
+  text.split('\n').forEach(line=>{
     const p=document.createElement('p');
-    if(line.trim()===''){
-      p.innerHTML='\u3000';
-    } else {
-      p.textContent=line;
-    }
+    if(line.trim()==='') p.innerHTML='\u3000';
+    else p.textContent=line;
     el.appendChild(p);
   });
-
   updUI();
 }
 
@@ -278,34 +307,24 @@ function go(n,anim){
 function prev(){go(pg-1,true)}
 function next(){go(pg+1,true)}
 
-/* ── Touch handling ── */
+/* ── Touch ── */
 let tx=0,ty=0,tt=0,tm=false;
-
 document.addEventListener('touchstart',e=>{
   if(!$('reader').classList.contains('on')) return;
   tx=e.touches[0].clientX;ty=e.touches[0].clientY;tt=Date.now();tm=false;
 },{passive:true});
-
 document.addEventListener('touchmove',e=>{
   if(!$('reader').classList.contains('on')) return;
   if(Math.abs(e.touches[0].clientX-tx)>12||Math.abs(e.touches[0].clientY-ty)>12) tm=true;
 },{passive:true});
-
 document.addEventListener('touchend',e=>{
   if(!$('reader').classList.contains('on')) return;
   const tgt=e.target;
   if(tgt.closest('#tbar')||tgt.closest('#bbar')) return;
-
   const dt=Date.now()-tt;
   const ex=e.changedTouches[0].clientX;
   const dx=ex-tx;
-
-  // Swipe
-  if(tm&&Math.abs(dx)>50&&dt<500){
-    dx>0?prev():next(); return;
-  }
-
-  // Quick tap
+  if(tm&&Math.abs(dx)>50&&dt<500){dx>0?prev():next();return}
   if(!tm&&dt<300){
     const w=window.innerWidth;
     if(bars){togBars();return}
@@ -353,21 +372,67 @@ function loadPos(){
   try{return(JSON.parse(localStorage.getItem('tr-bm')||'{}'))[fname]||null}catch(e){return null}
 }
 
-/* ── Recent ── */
+/* ── Recent List ── */
 function showRecent(){
   const el=$('rlist');el.innerHTML='';
   try{
     const bm=JSON.parse(localStorage.getItem('tr-bm')||'{}');
-    const ls=Object.entries(bm).sort((a,b)=>(b[1].d||0)-(a[1].d||0)).slice(0,5);
+    const ls=Object.entries(bm).sort((a,b)=>(b[1].d||0)-(a[1].d||0)).slice(0,8);
     if(!ls.length) return;
-    el.innerHTML='<div class="rhead">最近の本</div>';
+    el.innerHTML='<div class="rhead">最近の本（タップで再開）</div>';
     ls.forEach(([n,d])=>{
+      const hasText = !!loadBook(n);
       const pct=d.t>1?Math.round((d.p/(d.t-1))*100):0;
-      const b=document.createElement('button');b.className='ritem';
-      b.innerHTML=`<span>${n}</span><span class="rpct">${pct}%</span>`;
-      b.onclick=()=>{toast('ファイルを再度選択してください');$('fi').click()};
-      el.appendChild(b);
+
+      const row=document.createElement('div');
+      row.style.display='flex';row.style.alignItems='center';row.style.gap='0';
+
+      const btn=document.createElement('button');btn.className='ritem';
+      btn.style.flex='1';
+      btn.innerHTML=`<span class="rname">${n}</span><span class="rpct">${hasText?pct+'%':'要再選択'}</span>`;
+
+      if(hasText){
+        btn.onclick=()=>{
+          fname=n;
+          raw=loadBook(n);
+          startRead();
+        };
+      } else {
+        btn.onclick=()=>{
+          toast('ファイルを再度選択してください');
+          $('fi').click();
+        };
+        btn.style.opacity='.5';
+      }
+
+      const del=document.createElement('button');
+      del.className='rdel';
+      del.textContent='✕';
+      del.onclick=(e)=>{
+        e.stopPropagation();
+        removeBook(n);
+        showRecent();
+        toast(n+' を削除しました');
+      };
+
+      row.appendChild(btn);
+      row.appendChild(del);
+      el.appendChild(row);
     });
+
+    // Storage info
+    const info=document.createElement('div');
+    info.className='storage-info';
+    try{
+      let total=0;
+      for(let i=0;i<localStorage.length;i++){
+        const k=localStorage.key(i);
+        total+=localStorage.getItem(k).length;
+      }
+      const mb=(total*2/1024/1024).toFixed(1);
+      info.textContent=`使用容量: 約${mb}MB`;
+    }catch(e){}
+    el.appendChild(info);
   }catch(e){}
 }
 
