@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="縦書文庫">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>縦書文庫</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&display=swap');
+
+  :root {
+    --bg: #f5f0e8;
+    --text: #2a2218;
+    --accent: #8b6914;
+    --accent-light: #c4a35a;
+    --panel-bg: rgba(235, 229, 216, 0.95);
+    --font-size: 18px;
+    --line-height: 1.9;
+    --page-padding: 36px;
+  }
+
+  [data-theme="dark"] {
+    --bg: #1a1814;
+    --text: #d4cfc4;
+    --accent: #c4a35a;
+    --accent-light: #8b6914;
+    --panel-bg: rgba(42, 37, 32, 0.95);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Noto Serif JP', 'YuMincho', '游明朝', 'Hiragino Mincho ProN', serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100dvh;
+    height: -webkit-fill-available;
+    width: 100vw;
+    transition: background 0.4s, color 0.4s;
+    -webkit-user-select: text;
+    user-select: text;
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+
+  /* ── Landing Screen ── */
+  #landing {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    background: var(--bg);
+    transition: opacity 0.5s;
+  }
+  #landing.hidden { opacity: 0; pointer-events: none; }
+
+  .landing-title {
+    writing-mode: vertical-rl;
+    font-size: 36px;
+    letter-spacing: 0.3em;
+    color: var(--accent);
+    margin-bottom: 16px;
+    font-weight: 700;
+  }
+  .landing-sub {
+    writing-mode: vertical-rl;
+    font-size: 13px;
+    color: var(--text);
+    opacity: 0.4;
+    margin-bottom: 48px;
+    letter-spacing: 0.15em;
+  }
+
+  .file-btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 14px 44px;
+    font-size: 16px;
+    font-family: inherit;
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: transform 0.15s;
+  }
+  .file-btn:active { transform: scale(0.95); }
+  #fileInput { display: none; }
+
+  .recent-list {
+    margin-top: 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 280px;
+  }
+  .recent-heading {
+    font-size: 12px;
+    color: var(--text);
+    opacity: 0.4;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .recent-item {
+    background: var(--panel-bg);
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .recent-item:active { opacity: 0.7; }
+  .progress-badge { font-size: 11px; color: var(--accent); }
+
+  /* ── Reader ── */
+  #reader { display: none; position: fixed; inset: 0; }
+  #reader.active { display: block; }
+
+  #page-view {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-size: var(--font-size);
+    line-height: var(--line-height);
+    padding: var(--page-padding);
+    padding-top: max(var(--page-padding), env(safe-area-inset-top, 20px));
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    column-fill: auto;
+    column-gap: 2.5em;
+    word-break: break-all;
+    text-align: justify;
+    transition: opacity 0.15s;
+  }
+  #page-view p {
+    text-indent: 1em;
+    margin-bottom: 0.4em;
+  }
+  #page-view.turning { opacity: 0.2; }
+
+  /* ── Tap Zones ── */
+  .zone { position: fixed; top: 0; bottom: 0; z-index: 10; }
+  .zone-right { right: 0; width: 33%; }
+  .zone-center { left: 33%; width: 34%; }
+  .zone-left { left: 0; width: 33%; }
+
+  /* ── Top Bar ── */
+  #topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: max(12px, env(safe-area-inset-top, 12px)) 12px 10px;
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  #topbar.show { opacity: 1; pointer-events: auto; }
+
+  .bar-title {
+    font-size: 13px;
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    text-align: center;
+    padding: 0 8px;
+  }
+
+  /* ── Bottom Bar ── */
+  #bottombar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    padding: 14px 16px max(14px, env(safe-area-inset-bottom, 14px));
+    background: var(--panel-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 50;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #bottombar.show { opacity: 1; pointer-events: auto; }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn {
+    background: none;
+    border: 1px solid var(--accent-light);
+    color: var(--text);
+    min-width: 38px; height: 38px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    transition: background 0.15s;
+    padding: 0 6px;
+  }
+  .btn:active { background: var(--accent); color: #fff; }
+
+  .slider-wrap { flex: 1; display: flex; align-items: center; gap: 10px; }
+  #pageSlider { flex: 1; accent-color: var(--accent); height: 4px; }
+  .page-num { font-size: 12px; opacity: 0.6; min-width: 55px; text-align: center; }
+
+  /* ── Progress bar ── */
+  #progressBar {
+    position: fixed;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: var(--accent);
+    z-index: 60;
+    transition: width 0.3s;
+    pointer-events: none;
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    top: 70px; left: 50%;
+    transform: translateX(-50%) translateY(-16px);
+    background: var(--accent);
+    color: #fff;
+    padding: 8px 22px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 200;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── Page turn flash ── */
+  .page-flash {
+    position: fixed;
+    top: 0; bottom: 0;
+    width: 1px;
+    background: var(--accent-light);
+    opacity: 0;
+    z-index: 5;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ===== Landing ===== -->
+<div id="landing">
+  <div class="landing-title">縦書文庫</div>
+  <div class="landing-sub">テキストリーダー</div>
+  <button class="file-btn" onclick="pickFile()">ファイルを開く</button>
+  <input type="file" id="fileInput" accept=".txt,.text,text/plain">
+  <div class="recent-list" id="recentList"></div>
+</div>
+
+<!-- ===== Reader ===== -->
+<div id="reader">
+  <div class="zone zone-right" id="zRight"></div>
+  <div class="zone zone-center" id="zCenter"></div>
+  <div class="zone zone-left" id="zLeft"></div>
+
+  <div id="page-view"></div>
+
+  <div id="topbar">
+    <button class="btn" onclick="goHome()" style="font-size:13px;">✕ 戻る</button>
+    <span class="bar-title" id="barTitle"></span>
+    <button class="btn" id="themeBtn" onclick="toggleTheme()">🌙</button>
+  </div>
+
+  <div id="bottombar">
+    <div class="bar-row">
+      <button class="btn" onclick="adjFont(-2)">A<small>-</small></button>
+      <button class="btn" onclick="adjFont(2)"><b>A</b><small>+</small></button>
+      <div class="slider-wrap">
+        <input type="range" id="pageSlider" min="0" max="1" value="0">
+        <span class="page-num" id="pageNum">1/1</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="progressBar"></div>
+</div>
+
+<script>
+// ─── State ───
+let text = '', name = '', pages = 1, page = 0, fontSize = 18, barsOn = false;
+const $ = id => document.getElementById(id);
+const pv = $('page-view');
+
+// ─── File ───
+function pickFile() { $('fileInput').click(); }
+$('fileInput').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  name = f.name.replace(/\.(txt|text)$/i, '');
+  const r = new FileReader();
+  r.onload = ev => { text = ev.target.result; startReading(); };
+  r.readAsText(f, 'UTF-8');
+  e.target.value = '';
+});
+
+// ─── Pagination ───
+function paginate() {
+  pv.innerHTML = '';
+  pv.style.fontSize = fontSize + 'px';
+  const paras = text.split(/\n+/).filter(p => p.trim());
+  paras.forEach(t => {
+    const p = document.createElement('p');
+    p.textContent = t;
+    pv.appendChild(p);
+  });
+  // Force layout
+  void pv.offsetHeight;
+  const totalW = pv.scrollWidth;
+  const viewW = pv.clientWidth;
+  pages = Math.max(1, Math.ceil(totalW / viewW));
+  return pages;
+}
+
+function showPage(n, anim = true) {
+  n = Math.max(0, Math.min(pages - 1, n));
+  if (anim && n !== page) {
+    pv.classList.add('turning');
+    setTimeout(() => {
+      page = n;
+      pv.scrollLeft = page * pv.clientWidth;
+      pv.classList.remove('turning');
+      updateUI();
+      savePos();
+    }, 120);
+  } else {
+    page = n;
+    pv.scrollLeft = page * pv.clientWidth;
+    updateUI();
+  }
+}
+
+function updateUI() {
+  $('pageNum').textContent = `${page + 1} / ${pages}`;
+  $('pageSlider').max = Math.max(0, pages - 1);
+  $('pageSlider').value = page;
+  const pct = pages > 1 ? (page / (pages - 1)) * 100 : 0;
+  $('progressBar').style.width = pct + '%';
+}
+
+// ─── Navigation ───
+// 縦書き右→左：右タップ=前ページ、左タップ=次ページ
+function prev() { if (page > 0) showPage(page - 1); }
+function next() { if (page < pages - 1) showPage(page + 1); }
+
+$('zRight').addEventListener('click', () => { if (barsOn) toggleBars(); else prev(); });
+$('zLeft').addEventListener('click', () => { if (barsOn) toggleBars(); else next(); });
+$('zCenter').addEventListener('click', toggleBars);
+
+// Swipe
+let sx = 0;
+pv.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+pv.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - sx;
+  if (Math.abs(dx) > 40) { dx > 0 ? prev() : next(); }
+}, { passive: true });
+
+$('pageSlider').addEventListener('input', e => showPage(+e.target.value, false));
+
+// ─── Font Size ───
+function adjFont(d) {
+  const ratio = pages > 1 ? page / (pages - 1) : 0;
+  fontSize = Math.max(12, Math.min(40, fontSize + d));
+  document.documentElement.style.setProperty('--font-size', fontSize + 'px');
+  paginate();
+  showPage(Math.round(ratio * (pages - 1)), false);
+  try { localStorage.setItem('tr-fontsize', fontSize); } catch(e) {}
+}
+
+// ─── Theme ───
+function toggleTheme() {
+  const dark = !document.body.hasAttribute('data-theme');
+  if (dark) {
+    document.body.setAttribute('data-theme', 'dark');
+    $('themeBtn').textContent = '☀️';
+  } else {
+    document.body.removeAttribute('data-theme');
+    $('themeBtn').textContent = '🌙';
+  }
+  try { localStorage.setItem('tr-theme', dark ? 'dark' : 'light'); } catch(e) {}
+}
+
+// ─── Bars ───
+function toggleBars() {
+  barsOn = !barsOn;
+  $('topbar').classList.toggle('show', barsOn);
+  $('bottombar').classList.toggle('show', barsOn);
+}
+
+// ─── Bookmark ───
+function savePos() {
+  try {
+    const bm = JSON.parse(localStorage.getItem('tr-bm') || '{}');
+    bm[name] = { p: page, t: pages, d: Date.now() };
+    localStorage.setItem('tr-bm', JSON.stringify(bm));
+  } catch(e) {}
+}
+
+function loadPos() {
+  try {
+    const bm = JSON.parse(localStorage.getItem('tr-bm') || '{}');
+    return bm[name] || null;
+  } catch(e) { return null; }
+}
+
+// ─── Recent List ───
+function showRecent() {
+  const el = $('recentList');
+  el.innerHTML = '';
+  try {
+    const bm = JSON.parse(localStorage.getItem('tr-bm') || '{}');
+    const list = Object.entries(bm).sort((a, b) => (b[1].d || 0) - (a[1].d || 0)).slice(0, 5);
+    if (!list.length) return;
+    el.innerHTML = '<div class="recent-heading">最近の本</div>';
+    list.forEach(([n, d]) => {
+      const pct = d.t > 1 ? Math.round((d.p / (d.t - 1)) * 100) : 0;
+      const btn = document.createElement('button');
+      btn.className = 'recent-item';
+      btn.innerHTML = `<span>${n}</span><span class="progress-badge">${pct}%</span>`;
+      btn.onclick = () => { toast('同じファイルを再度選択してください'); pickFile(); };
+      el.appendChild(btn);
+    });
+  } catch(e) {}
+}
+
+// ─── Start / Home ───
+function startReading() {
+  $('landing').classList.add('hidden');
+  $('reader').classList.add('active');
+  $('barTitle').textContent = name;
+  setTimeout(() => {
+    paginate();
+    const bm = loadPos();
+    if (bm && bm.p > 0 && bm.p < pages) {
+      showPage(bm.p, false);
+      toast(`${bm.p + 1}ページから再開`);
+    } else {
+      showPage(0, false);
+    }
+  }, 80);
+}
+
+function goHome() {
+  savePos();
+  $('reader').classList.remove('active');
+  $('landing').classList.remove('hidden');
+  barsOn = false;
+  $('topbar').classList.remove('show');
+  $('bottombar').classList.remove('show');
+  showRecent();
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ─── Keyboard ───
+document.addEventListener('keydown', e => {
+  if (!$('reader').classList.contains('active')) return;
+  if (e.key === 'ArrowLeft') next();
+  if (e.key === 'ArrowRight') prev();
+});
+
+// ─── Resize ───
+let rt;
+window.addEventListener('resize', () => {
+  clearTimeout(rt);
+  rt = setTimeout(() => {
+    if ($('reader').classList.contains('active')) {
+      const ratio = pages > 1 ? page / (pages - 1) : 0;
+      paginate();
+      showPage(Math.round(ratio * (pages - 1)), false);
+    }
+  }, 200);
+});
+
+// ─── Init ───
+try {
+  if (localStorage.getItem('tr-theme') === 'dark') {
+    document.body.setAttribute('data-theme', 'dark');
+    $('themeBtn').textContent = '☀️';
+  }
+  const fs = localStorage.getItem('tr-fontsize');
+  if (fs) { fontSize = +fs; document.documentElement.style.setProperty('--font-size', fontSize + 'px'); }
+} catch(e) {}
+showRecent();
+
+// ─── Service Worker ───
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
