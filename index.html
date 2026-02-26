@@ -194,7 +194,7 @@ html, body {
   <div class="lsub">テキストリーダー</div>
   <button class="fbtn" onclick="$('fi').click()">ファイルを開く</button>
   <input type="file" id="fi" accept=".txt,.text,text/plain">
-  <button class="fbtn" style="margin-top:12px;background:#666;font-size:13px;" onclick="runDiag()">📐 診断</button>
+  <button class="fbtn" style="margin-top:12px;background:#555;font-size:13px;" onclick="runDiag()">📐 診断</button>
   <div class="rlist" id="rlist"></div>
 </div>
 
@@ -541,7 +541,7 @@ function runDiag(){
   const pb=parseFloat(cs.paddingBottom)||0;
   const innerW=vp.width-pl-pr;
   const innerH=vp.height-pt-pb;
-  const msg=[
+  alert([
     '── viewport ──',
     'vp.width: '+vp.width.toFixed(1),
     'vp.height: '+vp.height.toFixed(1),
@@ -553,15 +553,13 @@ function runDiag(){
     '内側H: '+innerH.toFixed(1),
     '── state ──',
     'pageW: '+pageW.toFixed(1),
-    'tp: '+tp,
-    'pg: '+pg,
+    'tp(総P): '+tp,
     'fs: '+fs,
     '── window ──',
-    'innerWidth: '+window.innerWidth,
-    'innerHeight: '+window.innerHeight,
-    'devicePixelRatio: '+window.devicePixelRatio,
-  ].join('\n');
-  alert(msg);
+    'innerW: '+window.innerWidth,
+    'innerH: '+window.innerHeight,
+    'dpr: '+window.devicePixelRatio,
+  ].join('\n'));
 }
 
 /* ══ 初期化 ══ */
