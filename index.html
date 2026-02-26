@@ -323,27 +323,20 @@ async function calcPages(){
   if(document.fonts?.ready){
     try{await document.fonts.ready;}catch(e){}
   }
-  /* 2. トリプルrAFでレイアウト確定を待つ */
-  await nextFrame();
+  /* 2. ダブルrAFでレイアウト確定を待つ */
   await nextFrame();
   await nextFrame();
 
   const vp=$('viewport').getBoundingClientRect();
   const end=$('bookEnd').getBoundingClientRect();
 
-  const vpEl=$('viewport');
-  const cs=getComputedStyle(vpEl);
-  const pl=parseFloat(cs.paddingLeft)||0;
-  const pr=parseFloat(cs.paddingRight)||0;
-  pageW=vp.width-pl-pr;
-
-  const dx=Math.abs(end.left-(vp.left+pl));
+  pageW=vp.width - (parseFloat(getComputedStyle($('viewport')).paddingLeft)||0) - (parseFloat(getComputedStyle($('viewport')).paddingRight)||0);
+  const dx=Math.abs(end.left-vp.left);
   tp=Math.max(1,Math.round(dx/pageW)+1);
 }
 
 /* ══ render：現在ページを表示 ══ */
 function render(){
-  /* vertical-rl では列が右→左に伸びるため translateX はマイナス方向 */
   $('book').style.transform=`translateX(${-pg*pageW}px)`;
   updUI();
 }
