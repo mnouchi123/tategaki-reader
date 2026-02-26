@@ -85,9 +85,9 @@ html, body {
   box-sizing:border-box;
   overflow:hidden;
   padding-top:    env(safe-area-inset-top, 44px);
-  padding-right:  max(env(safe-area-inset-right, 0px), 20px);
+  padding-right:  max(env(safe-area-inset-right, 0px), 44px);
   padding-bottom: env(safe-area-inset-bottom, 34px);
-  padding-left:   max(env(safe-area-inset-left, 0px), 20px);
+  padding-left:   max(env(safe-area-inset-left, 0px), 44px);
 }
 
 /*
@@ -330,23 +330,14 @@ async function calcPages(){
   const vp=$('viewport').getBoundingClientRect();
   const end=$('bookEnd').getBoundingClientRect();
 
-  const vpEl=$('viewport');
-  const cs=getComputedStyle(vpEl);
-  const pl=parseFloat(cs.paddingLeft)||0;
-  const pr=parseFloat(cs.paddingRight)||0;
-  pageW=vp.width-pl-pr;
-
-  /* 本文領域の右端（1ページ目の右端）を基準にする。
-     vertical-rl では列が左方向へ伸びるため
-     bookEnd.left < 本文右端 になる。              */
-  const contentRight=vp.right-pr;
-  const dx=Math.abs(end.left-contentRight);
+  pageW=vp.width;
+  const dx=Math.abs(end.left-vp.left);
   tp=Math.max(1,Math.round(dx/pageW)+1);
 }
 
 /* ══ render：現在ページを表示 ══ */
 function render(){
-  $('book').style.transform=`translateX(${-pg*pageW}px)`;
+  $('book').style.transform=`translateX(${pg*pageW}px)`;
   updUI();
 }
 
