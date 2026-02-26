@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="縦書文庫">
@@ -29,10 +29,12 @@
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
-body{
+html, body {
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+  color:var(--text);
   font-family:'Noto Serif JP','Hiragino Mincho ProN','YuMincho',serif;
-  background:var(--bg);color:var(--text);
-  overflow:hidden;position:fixed;inset:0;
   transition:background .3s,color .3s;
 }
 
@@ -66,37 +68,49 @@ body{
 .rdel:active{color:var(--accent)}
 
 /* ===== READER ===== */
-#reader{display:none;position:fixed;inset:0;overflow:hidden}
+#reader{display:none;position:fixed;inset:0;}
 #reader.on{display:block}
 
 /*
-  CSSマルチカラム方式：
-  ・writing-mode:vertical-rl で縦書き
-  ・column-width:100vw で「1列＝画面幅」
-  ・height:100vh で列の高さを固定
-  ・column-fill:auto でコンテンツが列を順番に埋める
-  ・overflow:visible でページ外に列をあふれさせる
-  ・translateX(pg * innerWidth) でページ送り
+  safe-area吸収コンテナ（両AI共通推奨）
+  - position:fixed + inset:0 + 100dvh
+  - padding で safe-area を吸収
+  - overflow:hidden でページ外を隠す
+  - ページ幅の基準はこの要素の getBoundingClientRect().width を使う
+*/
+#viewport{
+  position:fixed;
+  inset:0;
+  height:100dvh;
+  box-sizing:border-box;
+  overflow:hidden;
+  padding:
+    env(safe-area-inset-top, 44px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 34px)
+    env(safe-area-inset-left, 0px);
+}
+
+/*
+  CSSマルチカラム本体
+  - column-width:100% → #viewport の内側幅を1列とする（vwを使わない）
+  - height:100% → #viewport の内側高さ
+  - translateX でページ送り
 */
 #book{
-  position:absolute;
-  top:0;left:0;
-  height:100vh;
-  width:max-content;
+  width:100%;
+  height:100%;
 
   writing-mode:vertical-rl;
   text-orientation:mixed;
 
-  column-width:100vw;
-  column-gap:0px;
+  column-width:100%;
+  column-gap:0;
   column-fill:auto;
 
   line-height:1.85;
-
-  padding-top:max(48px,env(safe-area-inset-top,48px));
-  padding-bottom:max(48px,env(safe-area-inset-bottom,48px));
-  padding-left:28px;
-  padding-right:28px;
+  padding-left:16px;
+  padding-right:16px;
 
   word-break:break-all;
   text-align:justify;
@@ -105,7 +119,6 @@ body{
   will-change:transform;
 }
 
-/* コピペ混入を防ぐため all:unset で完全リセット */
 #book p{
   all:unset;
   display:block;
@@ -118,6 +131,13 @@ body{
   word-break:break-all;
 }
 
+/* 末尾計測用アンカー */
+#bookEnd{
+  display:block;
+  width:1px;
+  height:1px;
+}
+
 /* ===== BARS ===== */
 #tbar,#bbar{
   position:fixed;left:0;right:0;
@@ -125,8 +145,16 @@ body{
   backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   z-index:50;opacity:0;pointer-events:none;transition:opacity .25s;
 }
-#tbar{top:0;padding:max(12px,env(safe-area-inset-top,12px)) 12px 8px;display:flex;align-items:center;justify-content:space-between}
-#bbar{bottom:0;padding:12px 16px max(12px,env(safe-area-inset-bottom,12px));display:flex;flex-direction:column;gap:8px}
+#tbar{
+  top:0;
+  padding:max(12px,env(safe-area-inset-top,12px)) 12px 8px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+#bbar{
+  bottom:0;
+  padding:12px 16px max(12px,env(safe-area-inset-bottom,12px));
+  display:flex;flex-direction:column;gap:8px;
+}
 #tbar.on,#bbar.on{opacity:1;pointer-events:auto}
 .btitle{font-size:13px;opacity:.6;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px}
 .brow{display:flex;align-items:center;gap:10px}
@@ -175,7 +203,13 @@ body{
 
 <!-- READER -->
 <div id="reader">
-  <div id="book"></div>
+  <!-- safe-area吸収コンテナ -->
+  <div id="viewport">
+    <div id="book">
+      <!-- 本文がここに入る。末尾に#bookEndが追加される -->
+    </div>
+  </div>
+
   <div id="tbar">
     <button class="b" onclick="goHome()">✕ 戻る</button>
     <span class="btitle" id="btitle"></span>
@@ -209,7 +243,7 @@ function showLoading(b,msg){
 }
 
 /* ══ IndexedDB ══ */
-const DB_NAME='tategaki-reader', DB_VER=2, MAX_BOOKS=5, SPLIT_BYTES=900*1024;
+const DB_NAME='tategaki-reader',DB_VER=2,MAX_BOOKS=5,SPLIT_BYTES=900*1024;
 let db=null;
 
 function openDB(){
@@ -217,8 +251,8 @@ function openDB(){
     const req=indexedDB.open(DB_NAME,DB_VER);
     req.onupgradeneeded=e=>{
       const d=e.target.result;
-      if(!d.objectStoreNames.contains('books')) d.createObjectStore('books',{keyPath:'id'});
-      if(!d.objectStoreNames.contains('pos'))   d.createObjectStore('pos',  {keyPath:'id'});
+      if(!d.objectStoreNames.contains('books'))d.createObjectStore('books',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('pos'))d.createObjectStore('pos',{keyPath:'id'});
     };
     req.onsuccess=e=>{db=e.target.result;res(db)};
     req.onerror=()=>rej(req.error);
@@ -231,7 +265,7 @@ const dbDelete=(s,k)=>new Promise((res,rej)=>{const r=db.transaction(s,'readwrit
 
 function splitText(text,baseName){
   const enc=new TextEncoder();
-  if(enc.encode(text).length<=SPLIT_BYTES) return [{id:baseName,text}];
+  if(enc.encode(text).length<=SPLIT_BYTES)return[{id:baseName,text}];
   const lines=text.split('\n');
   const parts=[];let buf=[],bufBytes=0,n=1;
   for(const line of lines){
@@ -258,9 +292,12 @@ async function savePos(id,pct){
 }
 
 /* ══ State ══ */
-let raw='',fname='',fs=18,pg=0,tp=1,bars=false;
+let raw='',fname='',fs=18,pg=0,tp=1,pageW=0,bars=false;
 
-/* ══ CSSマルチカラム ══ */
+/* ══ rAF ヘルパー ══ */
+const nextFrame=()=>new Promise(r=>requestAnimationFrame(r));
+
+/* ══ buildBook：テキストをDOMに展開 ══ */
 function buildBook(){
   const book=$('book');
   book.style.fontSize=fs+'px';
@@ -271,25 +308,41 @@ function buildBook(){
     p.textContent=line.trim()===''?'\u3000':line;
     frag.appendChild(p);
   }
+  /* 末尾計測用アンカー */
+  const end=document.createElement('div');
+  end.id='bookEnd';
+  frag.appendChild(end);
+
   book.innerHTML='';
   book.appendChild(frag);
 }
 
-function calcPages(){
-  const sw=$('book').scrollWidth;
-  tp=Math.max(1,Math.ceil(sw/window.innerWidth));
+/* ══ calcPages：getBoundingClientRect方式（両AI推奨） ══
+   - ページ幅の基準は #viewport の実測幅（safe-area差分を含まない）
+   - #bookEnd の left と #viewport の left の差分で総幅を算出
+   - vertical-rl では列が左方向へ伸びるため bookEnd.left < viewport.left になる
+*/
+async function calcPages(){
+  /* 1. Webフォントのロード完了を待つ */
+  if(document.fonts?.ready){
+    try{await document.fonts.ready;}catch(e){}
+  }
+  /* 2. ダブルrAFでレイアウト確定を待つ */
+  await nextFrame();
+  await nextFrame();
+
+  const vp=$('viewport').getBoundingClientRect();
+  const end=$('bookEnd').getBoundingClientRect();
+
+  pageW=vp.width;
+  const dx=Math.abs(end.left-vp.left);
+  tp=Math.max(1,Math.round(dx/pageW)+1);
 }
 
-function gotoPage(n,anim){
-  n=Math.max(0,Math.min(tp-1,n));pg=n;
-  const book=$('book');
-  const move=()=>{
-    book.style.transform=`translateX(${pg*window.innerWidth}px)`;
-    updUI();
-    persistPos();
-  };
-  if(anim){book.style.opacity='0.15';setTimeout(()=>{move();book.style.opacity='1';},120);}
-  else move();
+/* ══ render：現在ページを表示 ══ */
+function render(){
+  $('book').style.transform=`translateX(${pg*pageW}px)`;
+  updUI();
 }
 
 function updUI(){
@@ -304,8 +357,23 @@ function persistPos(){
   savePos(fname,pct).catch(()=>{});
 }
 
-function pctToPage(pct){
-  return Math.round(pct*(tp-1));
+function pctToPage(pct){return Math.round(pct*(tp-1));}
+
+/* ══ relayout：リビルド＋再計測（フォントサイズ変更・回転など） ══ */
+let relayoutScheduled=false;
+async function relayout(){
+  relayoutScheduled=false;
+  const pct=tp>1?pg/(tp-1):0;
+  buildBook();
+  await calcPages();
+  pg=Math.min(pctToPage(pct),tp-1);
+  render();
+  showLoading(false);
+}
+function requestRelayout(){
+  if(relayoutScheduled)return;
+  relayoutScheduled=true;
+  relayout();
 }
 
 /* ══ 書籍を開く ══ */
@@ -317,39 +385,29 @@ async function openBook(id,text){
   bars=false;
   showLoading(true,'ページ構築中…');
 
-  requestAnimationFrame(()=>requestAnimationFrame(async()=>{
-    buildBook();
-    /* CSSマルチカラムのレイアウト確定を待つ */
-    await new Promise(r=>setTimeout(r,100));
-    calcPages();
-    const posRec=await dbGet('pos',fname);
-    let startPage=0;
-    if(posRec&&posRec.pct>0) startPage=pctToPage(posRec.pct);
-    gotoPage(startPage,false);
-    showLoading(false);
-    if(posRec&&posRec.pct>0) toast(`${startPage+1}ページから再開`);
-  }));
+  buildBook();
+  await calcPages();
+
+  const posRec=await dbGet('pos',fname);
+  pg=0;
+  if(posRec&&posRec.pct>0)pg=pctToPage(posRec.pct);
+  pg=Math.min(pg,tp-1);
+  render();
+  showLoading(false);
+  if(posRec&&posRec.pct>0)toast(`${pg+1}ページから再開`);
 }
 
-/* ══ ファイル読み込み ══ */
-$('fi').addEventListener('change',async e=>{
-  const f=e.target.files[0];if(!f)return;
-  const baseName=f.name.replace(/\.(txt|text)$/i,'');
-  showLoading(true,'ファイル読み込み中…');
-  const reader=new FileReader();
-  reader.onload=async ev=>{
-    const text=ev.target.result;
-    const parts=splitText(text,baseName);
-    for(const p of parts) await saveBook(p.id,p.text);
-    if(parts.length>1) toast(`${parts.length}パートに分割して保存`);
-    showLoading(false);
-    openBook(parts[0].id,parts[0].text);
-  };
-  reader.readAsText(f,'UTF-8');
-  e.target.value='';
-});
-
 /* ══ ページ送り ══ */
+function gotoPage(n,anim){
+  n=Math.max(0,Math.min(tp-1,n));pg=n;
+  const book=$('book');
+  if(anim){
+    book.style.opacity='0.15';
+    setTimeout(()=>{render();book.style.opacity='1';persistPos();},120);
+  } else {
+    render();persistPos();
+  }
+}
 function prev(){gotoPage(pg-1,true)}
 function next(){gotoPage(pg+1,true)}
 
@@ -381,17 +439,10 @@ $('slider').addEventListener('input',e=>gotoPage(+e.target.value,false));
 
 /* ══ フォントサイズ ══ */
 function adjF(d){
-  const pct=tp>1?pg/(tp-1):0;
   fs=Math.max(12,Math.min(40,fs+d));
   try{localStorage.setItem('tr-fs',fs);}catch(e){}
   showLoading(true);
-  requestAnimationFrame(()=>requestAnimationFrame(async()=>{
-    buildBook();
-    await new Promise(r=>setTimeout(r,100));
-    calcPages();
-    gotoPage(pctToPage(pct),false);
-    showLoading(false);
-  }));
+  requestRelayout();
 }
 
 /* ══ テーマ ══ */
@@ -444,20 +495,42 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')prev();
 });
 
-/* ══ リサイズ ══ */
-let rT;
-window.addEventListener('resize',()=>{
-  clearTimeout(rT);
-  rT=setTimeout(async()=>{
+/* ══ リサイズ対応（ResizeObserver + visualViewport） ══ */
+new ResizeObserver(()=>{
+  if(!$('reader').classList.contains('on'))return;
+  showLoading(true);
+  requestRelayout();
+}).observe($('viewport'));
+
+window.addEventListener('orientationchange',()=>{
+  if(!$('reader').classList.contains('on'))return;
+  showLoading(true);
+  requestRelayout();
+});
+
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',()=>{
     if(!$('reader').classList.contains('on'))return;
-    const pct=tp>1?pg/(tp-1):0;
-    showLoading(true);
-    buildBook();
-    await new Promise(r=>setTimeout(r,100));
-    calcPages();
-    gotoPage(pctToPage(pct),false);
+    requestRelayout();
+  });
+}
+
+/* ══ ファイル読み込み ══ */
+$('fi').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const baseName=f.name.replace(/\.(txt|text)$/i,'');
+  showLoading(true,'ファイル読み込み中…');
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    const text=ev.target.result;
+    const parts=splitText(text,baseName);
+    for(const p of parts)await saveBook(p.id,p.text);
+    if(parts.length>1)toast(`${parts.length}パートに分割して保存`);
     showLoading(false);
-  },300);
+    openBook(parts[0].id,parts[0].text);
+  };
+  reader.readAsText(f,'UTF-8');
+  e.target.value='';
 });
 
 /* ══ 初期化 ══ */
