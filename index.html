@@ -331,14 +331,32 @@ async function calcPages(){
   const vp=$('viewport').getBoundingClientRect();
   const end=$('bookEnd').getBoundingClientRect();
 
-  pageW=vp.width;
-  const dx=Math.abs(end.left-vp.left);
+  /* #viewport の内側幅（padding除く）を pageW とする。
+     column-width:100% はこの内側幅を1列として扱う。
+     translateX のステップもこの値に合わせる。        */
+  const vpEl=$('viewport');
+  const cs=getComputedStyle(vpEl);
+  const pl=parseFloat(cs.paddingLeft)||0;
+  const pr=parseFloat(cs.paddingRight)||0;
+  pageW=vp.width-pl-pr;
+
+  /* vertical-rl では列が左方向へ伸びる。
+     bookEnd.left は最終列の左端。
+     vp.left+pl が本文領域の右端（1ページ目の右端）。
+     その差分を pageW で割ってページ数を算出する。   */
+  const contentRight=vp.left+pl;
+  const dx=Math.abs(end.left-contentRight);
   tp=Math.max(1,Math.round(dx/pageW)+1);
 }
 
 /* ══ render：現在ページを表示 ══ */
 function render(){
-  $('book').style.transform=`translateX(${pg*pageW}px)`;
+  /* vertical-rl + translateX でページ送り。
+     #book の初期位置は paddingLeft 分だけ右にずれているため
+     そのオフセットを加算する。                        */
+  const cs=getComputedStyle($('viewport'));
+  const pl=parseFloat(cs.paddingLeft)||0;
+  $('book').style.transform=`translateX(${pl+pg*pageW}px)`;
   updUI();
 }
 
