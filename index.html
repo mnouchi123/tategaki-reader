@@ -85,9 +85,9 @@ html, body {
   box-sizing:border-box;
   overflow:hidden;
   padding-top:    env(safe-area-inset-top, 44px);
-  padding-right:  max(env(safe-area-inset-right, 0px), 44px);
+  padding-right:  max(env(safe-area-inset-right, 0px), 20px);
   padding-bottom: env(safe-area-inset-bottom, 34px);
-  padding-left:   max(env(safe-area-inset-left, 0px), 44px);
+  padding-left:   max(env(safe-area-inset-left, 0px), 20px);
 }
 
 /*
@@ -330,14 +330,27 @@ async function calcPages(){
   const vp=$('viewport').getBoundingClientRect();
   const end=$('bookEnd').getBoundingClientRect();
 
-  pageW=vp.width;
+  /* pageW は #viewport の内側幅（padding除く）を使う。
+     column-width:100% は内側幅を1列とするため、
+     translateX のステップも内側幅に合わせないとズレが生じる。 */
+  const vpEl=$('viewport');
+  const cs=getComputedStyle(vpEl);
+  const pl=parseFloat(cs.paddingLeft)||0;
+  const pr=parseFloat(cs.paddingRight)||0;
+  pageW=vp.width-pl-pr;
+
   const dx=Math.abs(end.left-vp.left);
   tp=Math.max(1,Math.round(dx/pageW)+1);
 }
 
 /* ══ render：現在ページを表示 ══ */
 function render(){
-  $('book').style.transform=`translateX(${pg*pageW}px)`;
+  const cs=getComputedStyle($('viewport'));
+  const pl=parseFloat(cs.paddingLeft)||0;
+  /* vertical-rl では列が右→左に並ぶ。
+     #book の左端は #viewport の左padding分だけ右にオフセットされており、
+     ページ送りは内側幅（pageW）単位で左方向へ translateX する。 */
+  $('book').style.transform=`translateX(${pl + pg*pageW}px)`;
   updUI();
 }
 
