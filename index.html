@@ -194,7 +194,6 @@ html, body {
   <div class="lsub">テキストリーダー</div>
   <button class="fbtn" onclick="$('fi').click()">ファイルを開く</button>
   <input type="file" id="fi" accept=".txt,.text,text/plain">
-  <button class="fbtn" style="margin-top:12px;background:#555;font-size:13px;" onclick="runDiag()">📐 診断</button>
   <div class="rlist" id="rlist"></div>
 </div>
 
@@ -324,7 +323,8 @@ async function calcPages(){
   if(document.fonts?.ready){
     try{await document.fonts.ready;}catch(e){}
   }
-  /* 2. ダブルrAFでレイアウト確定を待つ */
+  /* 2. トリプルrAFでレイアウト確定を待つ */
+  await nextFrame();
   await nextFrame();
   await nextFrame();
 
@@ -529,38 +529,6 @@ $('fi').addEventListener('change',async e=>{
   reader.readAsText(f,'UTF-8');
   e.target.value='';
 });
-
-/* ══ 診断 ══ */
-function runDiag(){
-  const vpEl=$('viewport');
-  const vp=vpEl.getBoundingClientRect();
-  const cs=getComputedStyle(vpEl);
-  const pl=parseFloat(cs.paddingLeft)||0;
-  const pr=parseFloat(cs.paddingRight)||0;
-  const pt=parseFloat(cs.paddingTop)||0;
-  const pb=parseFloat(cs.paddingBottom)||0;
-  const innerW=vp.width-pl-pr;
-  const innerH=vp.height-pt-pb;
-  alert([
-    '── viewport ──',
-    'vp.width: '+vp.width.toFixed(1),
-    'vp.height: '+vp.height.toFixed(1),
-    'paddingL: '+pl.toFixed(1),
-    'paddingR: '+pr.toFixed(1),
-    'paddingT: '+pt.toFixed(1),
-    'paddingB: '+pb.toFixed(1),
-    '内側W: '+innerW.toFixed(1),
-    '内側H: '+innerH.toFixed(1),
-    '── state ──',
-    'pageW: '+pageW.toFixed(1),
-    'tp(総P): '+tp,
-    'fs: '+fs,
-    '── window ──',
-    'innerW: '+window.innerWidth,
-    'innerH: '+window.innerHeight,
-    'dpr: '+window.devicePixelRatio,
-  ].join('\n'));
-}
 
 /* ══ 初期化 ══ */
 (async()=>{
