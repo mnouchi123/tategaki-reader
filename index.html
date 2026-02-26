@@ -194,6 +194,7 @@ html, body {
   <div class="lsub">テキストリーダー</div>
   <button class="fbtn" onclick="$('fi').click()">ファイルを開く</button>
   <input type="file" id="fi" accept=".txt,.text,text/plain">
+  <button class="fbtn" style="margin-top:12px;background:#666;font-size:13px;" onclick="runDiag()">📐 診断</button>
   <div class="rlist" id="rlist"></div>
 </div>
 
@@ -330,27 +331,14 @@ async function calcPages(){
   const vp=$('viewport').getBoundingClientRect();
   const end=$('bookEnd').getBoundingClientRect();
 
-  /* pageW は #viewport の内側幅（padding除く）を使う。
-     column-width:100% は内側幅を1列とするため、
-     translateX のステップも内側幅に合わせないとズレが生じる。 */
-  const vpEl=$('viewport');
-  const cs=getComputedStyle(vpEl);
-  const pl=parseFloat(cs.paddingLeft)||0;
-  const pr=parseFloat(cs.paddingRight)||0;
-  pageW=vp.width-pl-pr;
-
+  pageW=vp.width;
   const dx=Math.abs(end.left-vp.left);
   tp=Math.max(1,Math.round(dx/pageW)+1);
 }
 
 /* ══ render：現在ページを表示 ══ */
 function render(){
-  const cs=getComputedStyle($('viewport'));
-  const pl=parseFloat(cs.paddingLeft)||0;
-  /* vertical-rl では列が右→左に並ぶ。
-     #book の左端は #viewport の左padding分だけ右にオフセットされており、
-     ページ送りは内側幅（pageW）単位で左方向へ translateX する。 */
-  $('book').style.transform=`translateX(${pl + pg*pageW}px)`;
+  $('book').style.transform=`translateX(${pg*pageW}px)`;
   updUI();
 }
 
@@ -541,6 +529,40 @@ $('fi').addEventListener('change',async e=>{
   reader.readAsText(f,'UTF-8');
   e.target.value='';
 });
+
+/* ══ 診断 ══ */
+function runDiag(){
+  const vpEl=$('viewport');
+  const vp=vpEl.getBoundingClientRect();
+  const cs=getComputedStyle(vpEl);
+  const pl=parseFloat(cs.paddingLeft)||0;
+  const pr=parseFloat(cs.paddingRight)||0;
+  const pt=parseFloat(cs.paddingTop)||0;
+  const pb=parseFloat(cs.paddingBottom)||0;
+  const innerW=vp.width-pl-pr;
+  const innerH=vp.height-pt-pb;
+  const msg=[
+    '── viewport ──',
+    'vp.width: '+vp.width.toFixed(1),
+    'vp.height: '+vp.height.toFixed(1),
+    'paddingL: '+pl.toFixed(1),
+    'paddingR: '+pr.toFixed(1),
+    'paddingT: '+pt.toFixed(1),
+    'paddingB: '+pb.toFixed(1),
+    '内側W: '+innerW.toFixed(1),
+    '内側H: '+innerH.toFixed(1),
+    '── state ──',
+    'pageW: '+pageW.toFixed(1),
+    'tp: '+tp,
+    'pg: '+pg,
+    'fs: '+fs,
+    '── window ──',
+    'innerWidth: '+window.innerWidth,
+    'innerHeight: '+window.innerHeight,
+    'devicePixelRatio: '+window.devicePixelRatio,
+  ].join('\n');
+  alert(msg);
+}
 
 /* ══ 初期化 ══ */
 (async()=>{
