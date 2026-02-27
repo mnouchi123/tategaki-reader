@@ -72,11 +72,10 @@ html, body {
 #reader.on{display:block}
 
 /*
-  safe-area吸収コンテナ（両AI共通推奨）
-  - position:fixed + inset:0 + 100dvh
-  - padding で safe-area を吸収
-  - overflow:hidden でページ外を隠す
-  - ページ幅の基準はこの要素の getBoundingClientRect().width を使う
+  ★V3 3層構造
+  #viewport: safe-area吸収専用
+  #inner:    ページ幅基準・overflow:hidden（隔離壁）
+  #book:     縦書きmulticol + translateX
 */
 #viewport{
   position:fixed;
@@ -90,10 +89,19 @@ html, body {
   padding-left:   max(env(safe-area-inset-left, 0px), 20px);
 }
 
+/* ★V3追加: ページ幅計算の基準箱（paddingなし＝純粋な内寸） */
+#inner{
+  position:relative;
+  width:100%;
+  height:100%;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+
 /*
   CSSマルチカラム本体
-  - column-width:100% → #viewport の内側幅を1列とする（vwを使わない）
-  - height:100% → #viewport の内側高さ
+  - column-width:100% → #inner の幅を1列とする
+  - height:100% → #inner の高さ
   - translateX でページ送り
 */
 #book{
@@ -201,8 +209,11 @@ html, body {
 <div id="reader">
   <!-- safe-area吸収コンテナ -->
   <div id="viewport">
-    <div id="book">
-      <!-- 本文がここに入る。末尾に#bookEndが追加される -->
+    <!-- ★V3追加: ページ幅基準の隔離壁 -->
+    <div id="inner">
+      <div id="book">
+        <!-- 本文がここに入る。末尾に#bookEndが追加される -->
+      </div>
     </div>
   </div>
 
@@ -313,10 +324,10 @@ function buildBook(){
   book.appendChild(frag);
 }
 
-/* ══ calcPages：getBoundingClientRect方式（両AI推奨） ══
-   - ページ幅の基準は #viewport の実測幅（safe-area差分を含まない）
-   - #bookEnd の left と #viewport の left の差分で総幅を算出
-   - vertical-rl では列が左方向へ伸びるため bookEnd.left < viewport.left になる
+/* ══ calcPages：getBoundingClientRect方式 ══
+   ★V3: ページ幅の基準を #inner に変更（safe-areaと分離）
+   - #inner の実測幅がページ幅
+   - #bookEnd の left と #inner の left の差分で総幅を算出
 */
 async function calcPages(){
   /* 1. Webフォントのロード完了を待つ */
@@ -327,11 +338,11 @@ async function calcPages(){
   await nextFrame();
   await nextFrame();
 
-  const vp=$('viewport').getBoundingClientRect();
+  const inn=$('inner').getBoundingClientRect();  /* ★V3: viewport→inner */
   const end=$('bookEnd').getBoundingClientRect();
 
-  pageW=vp.width;
-  const dx=Math.abs(end.left-vp.left);
+  pageW=inn.width;                               /* ★V3: inner基準 */
+  const dx=Math.abs(end.left-inn.left);          /* ★V3: inner基準 */
   tp=Math.max(1,Math.round(dx/pageW)+1);
 }
 
@@ -496,7 +507,7 @@ new ResizeObserver(()=>{
   if(!$('reader').classList.contains('on'))return;
   showLoading(true);
   requestRelayout();
-}).observe($('viewport'));
+}).observe($('inner'));  /* ★V3: viewport→inner */
 
 window.addEventListener('orientationchange',()=>{
   if(!$('reader').classList.contains('on'))return;
