@@ -72,10 +72,9 @@ html, body {
 #reader.on{display:block}
 
 /*
-  ★V3 3層構造
-  #viewport: safe-area吸収専用
-  #inner:    ページ幅基準・overflow:hidden（隔離壁）
-  #book:     縦書きmulticol + translateX
+  ★V5: CSSマルチカラム廃止・行数固定ページネーション
+  #viewport: safe-area吸収
+  #book:     1ページ分のテキストを表示する縦書きコンテナ
 */
 #viewport{
   position:fixed;
@@ -89,38 +88,18 @@ html, body {
   padding-left:   max(env(safe-area-inset-left, 0px), 20px);
 }
 
-/* ★V3追加: ページ幅計算の基準箱（paddingなし＝純粋な内寸） */
-#inner{
-  position:relative;
-  width:100%;
-  height:100%;
-  box-sizing:border-box;
-  overflow:hidden;
-}
-
-/*
-  CSSマルチカラム本体
-  - column-width:100% → #inner の幅を1列とする
-  - height:100% → #inner の高さ
-  - translateX でページ送り
-*/
 #book{
   width:100%;
   height:100%;
+  overflow:hidden;
 
   writing-mode:vertical-rl;
   text-orientation:mixed;
-
-  column-width:100%;
-  column-gap:0;
-  column-fill:auto;
 
   line-height:1.85;
   word-break:break-all;
   text-align:justify;
   -webkit-user-select:text;user-select:text;
-
-  will-change:transform;
 }
 
 #book p{
@@ -131,18 +110,8 @@ html, body {
   line-height:inherit;
   color:inherit;
   text-indent:1em;
-  margin-bottom:0.5em;
+  margin-bottom:0;
   word-break:break-all;
-  /* ★V3 Step3: 端欠け対策 - 文字を内側に逃がす */
-  padding-left:16px;
-  padding-right:16px;
-}
-
-/* 末尾計測用アンカー */
-#bookEnd{
-  display:block;
-  width:1px;
-  height:1px;
 }
 
 /* ===== BARS ===== */
@@ -210,13 +179,9 @@ html, body {
 
 <!-- READER -->
 <div id="reader">
-  <!-- safe-area吸収コンテナ -->
   <div id="viewport">
-    <!-- ★V3追加: ページ幅基準の隔離壁 -->
-    <div id="inner">
-      <div id="book">
-        <!-- 本文がここに入る。末尾に#bookEndが追加される -->
-      </div>
+    <div id="book">
+      <!-- 1ページ分のテキストがここに入る -->
     </div>
   </div>
 
@@ -241,6 +206,7 @@ html, body {
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
+const LINE_HEIGHT = 1.85;
 
 function toast(m){
   const t=$('toast');t.textContent=m;
@@ -302,62 +268,111 @@ async function savePos(id,pct){
 }
 
 /* ══ State ══ */
-let raw='',fname='',fs=18,pg=0,tp=1,pageW=0,bars=false;
+let raw='',fname='',fs=18,pg=0,tp=1,bars=false;
+let pages=[];       /* ページ配列: pages[i] = { lines: [...] } */
+let linesPerPage=0; /* 1ページあたりの行数 */
+let charsPerLine=0; /* 1行あたりの文字数 */
 
-/* ══ rAF ヘルパー ══ */
-const nextFrame=()=>new Promise(r=>requestAnimationFrame(r));
+/* ══ V5: 画面寸法から行数・文字数を計算 ══ */
+function calcLayout(){
+  const vp=$('viewport');
+  const cs=getComputedStyle(vp);
+  const rect=vp.getBoundingClientRect();
+  const usableW=rect.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const usableH=rect.height - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
 
-/* ══ buildBook：テキストをDOMに展開 ══ */
-function buildBook(){
+  const lineAdvance=fs*LINE_HEIGHT; /* 1行の送り幅（縦書きでは横方向） */
+  linesPerPage=Math.floor(usableW/lineAdvance);
+  charsPerLine=Math.floor(usableH/fs);
+
+  console.log('[V5 calcLayout]',{fs,usableW,usableH,lineAdvance,linesPerPage,charsPerLine});
+}
+
+/* ══ V5: テキストをページ配列に分割 ══
+   段落単位で詰める。段落が入りきらない場合は文字数で分割する。
+*/
+function paginateText(){
+  pages=[];
+  if(!raw)return;
+
+  /* テキストを段落に分割 */
+  const paragraphs=raw.split('\n');
+
+  /* 各段落を「行数いくつ分か」に変換し、ページに詰めていく */
+  let currentPage=[];
+  let currentLines=0;
+
+  for(let pi=0;pi<paragraphs.length;pi++){
+    const para=paragraphs[pi];
+    const text=para.trim()===''?'　':para; /* 空行は全角スペース */
+
+    /* この段落が何行使うか（text-indent:1em分を考慮） */
+    const effectiveChars=charsPerLine-1; /* 1em字下げ分 */
+    const paraLines=Math.max(1,Math.ceil(text.length/effectiveChars));
+
+    if(currentLines+paraLines<=linesPerPage){
+      /* 現在のページに収まる */
+      currentPage.push(text);
+      currentLines+=paraLines;
+    } else {
+      /* 収まらない場合 */
+      const remaining=linesPerPage-currentLines;
+
+      if(remaining>=1&&paraLines>linesPerPage){
+        /* 長い段落：残り行数分だけ切り出して現ページに入れ、残りを次へ */
+        const cutAt=remaining*effectiveChars;
+        currentPage.push(text.substring(0,cutAt));
+        pages.push(currentPage);
+
+        /* 残りの文字列を引き続き分割 */
+        let rest=text.substring(cutAt);
+        while(rest.length>0){
+          const chunk=linesPerPage*charsPerLine; /* 字下げなし（継続行） */
+          if(rest.length<=chunk){
+            currentPage=[rest];
+            currentLines=Math.max(1,Math.ceil(rest.length/charsPerLine));
+            rest='';
+          } else {
+            pages.push([rest.substring(0,chunk)]);
+            rest=rest.substring(chunk);
+          }
+        }
+        if(rest.length===0&&currentPage.length===0){
+          currentPage=[];
+          currentLines=0;
+        }
+      } else {
+        /* 短い段落だが入らない：現ページを閉じて新ページへ */
+        if(currentPage.length>0)pages.push(currentPage);
+        currentPage=[text];
+        currentLines=paraLines;
+      }
+    }
+  }
+  /* 最後のページを追加 */
+  if(currentPage.length>0)pages.push(currentPage);
+
+  tp=pages.length;
+  console.log('[V5 paginateText]',{totalParagraphs:paragraphs.length,totalPages:tp,linesPerPage,charsPerLine});
+}
+
+/* ══ V5: 現在ページをDOMに描画 ══ */
+function render(){
   const book=$('book');
   book.style.fontSize=fs+'px';
-  const lines=raw.split('\n');
+  book.innerHTML='';
+
+  if(pg<0)pg=0;
+  if(pg>=tp)pg=tp-1;
+  if(!pages[pg])return;
+
   const frag=document.createDocumentFragment();
-  for(const line of lines){
+  for(const text of pages[pg]){
     const p=document.createElement('p');
-    p.textContent=line.trim()===''?'\u3000':line;
+    p.textContent=text;
     frag.appendChild(p);
   }
-  /* 末尾計測用アンカー */
-  const end=document.createElement('div');
-  end.id='bookEnd';
-  frag.appendChild(end);
-
-  book.innerHTML='';
   book.appendChild(frag);
-}
-
-/* ══ calcPages：getBoundingClientRect方式 ══
-   ★V3: ページ幅の基準を #inner に変更（safe-areaと分離）
-   - #inner の実測幅がページ幅
-   - #bookEnd の left と #inner の left の差分で総幅を算出
-*/
-async function calcPages(){
-  /* ★V3: 計測前にtransformをリセット（フォントサイズ変更時の残存オフセット対策） */
-  $('book').style.transform='translate3d(0,0,0)';
-
-  /* 1. Webフォントのロード完了を待つ */
-  if(document.fonts?.ready){
-    try{await document.fonts.ready;}catch(e){}
-  }
-  /* 2. ダブルrAFでレイアウト確定を待つ */
-  await nextFrame();
-  await nextFrame();
-
-  const inn=$('inner').getBoundingClientRect();  /* ★V3: viewport→inner */
-  const end=$('bookEnd').getBoundingClientRect();
-
-  pageW=inn.width;                               /* ★V3: inner基準 */
-  const dx=Math.abs(end.left-inn.left);          /* ★V3: inner基準 */
-  tp=Math.max(1,Math.round(dx/pageW)+1);
-
-  /* ★V3デバッグ（安定したら削除可） */
-  console.log('[calcPages V3]',{pageW,dx,tp,innLeft:inn.left,innWidth:inn.width,endLeft:end.left,fs});
-}
-
-/* ══ render：現在ページを表示 ══ */
-function render(){
-  $('book').style.transform=`translateX(${pg*pageW}px)`;
   updUI();
 }
 
@@ -375,13 +390,13 @@ function persistPos(){
 
 function pctToPage(pct){return Math.round(pct*(tp-1));}
 
-/* ══ relayout：リビルド＋再計測（フォントサイズ変更・回転など） ══ */
+/* ══ relayout：フォントサイズ変更・回転など ══ */
 let relayoutScheduled=false;
-async function relayout(){
+function relayout(){
   relayoutScheduled=false;
   const pct=tp>1?pg/(tp-1):0;
-  buildBook();
-  await calcPages();
+  calcLayout();
+  paginateText();
   pg=Math.min(pctToPage(pct),tp-1);
   render();
   showLoading(false);
@@ -389,7 +404,7 @@ async function relayout(){
 function requestRelayout(){
   if(relayoutScheduled)return;
   relayoutScheduled=true;
-  relayout();
+  requestAnimationFrame(()=>relayout());
 }
 
 /* ══ 書籍を開く ══ */
@@ -401,8 +416,13 @@ async function openBook(id,text){
   bars=false;
   showLoading(true,'ページ構築中…');
 
-  buildBook();
-  await calcPages();
+  /* フォントロード待ち */
+  if(document.fonts?.ready){
+    try{await document.fonts.ready;}catch(e){}
+  }
+
+  calcLayout();
+  paginateText();
 
   const posRec=await dbGet('pos',fname);
   pg=0;
@@ -511,12 +531,12 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')prev();
 });
 
-/* ══ リサイズ対応（ResizeObserver + visualViewport） ══ */
+/* ══ リサイズ対応 ══ */
 new ResizeObserver(()=>{
   if(!$('reader').classList.contains('on'))return;
   showLoading(true);
   requestRelayout();
-}).observe($('inner'));  /* ★V3: viewport→inner */
+}).observe(document.getElementById('viewport'));
 
 window.addEventListener('orientationchange',()=>{
   if(!$('reader').classList.contains('on'))return;
