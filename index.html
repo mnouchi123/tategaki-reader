@@ -133,6 +133,9 @@ html, body {
   text-indent:1em;
   margin-bottom:0.5em;
   word-break:break-all;
+  /* ★V3 Step3: 端欠け対策 - 文字を内側に逃がす */
+  padding-left:16px;
+  padding-right:16px;
 }
 
 /* 末尾計測用アンカー */
@@ -330,6 +333,9 @@ function buildBook(){
    - #bookEnd の left と #inner の left の差分で総幅を算出
 */
 async function calcPages(){
+  /* ★V3: 計測前にtransformをリセット（フォントサイズ変更時の残存オフセット対策） */
+  $('book').style.transform='translate3d(0,0,0)';
+
   /* 1. Webフォントのロード完了を待つ */
   if(document.fonts?.ready){
     try{await document.fonts.ready;}catch(e){}
@@ -344,6 +350,9 @@ async function calcPages(){
   pageW=inn.width;                               /* ★V3: inner基準 */
   const dx=Math.abs(end.left-inn.left);          /* ★V3: inner基準 */
   tp=Math.max(1,Math.round(dx/pageW)+1);
+
+  /* ★V3デバッグ（安定したら削除可） */
+  console.log('[calcPages V3]',{pageW,dx,tp,innLeft:inn.left,innWidth:inn.width,endLeft:end.left,fs});
 }
 
 /* ══ render：現在ページを表示 ══ */
